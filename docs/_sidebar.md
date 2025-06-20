@@ -49,6 +49,7 @@
       - [Embeddable](../src/plugins/embeddable/README.md)
       - [Explore](../src/plugins/explore/README.md)
       - [Expressions](../src/plugins/expressions/README.md)
+      - [Geojump](../src/plugins/geojump/README.md)
       - [Home](../src/plugins/home/README.md)
       - index_pattern_management
         - public
@@ -205,6 +206,7 @@
   - [COMMUNICATIONS](../COMMUNICATIONS.md)
   - [CONTRIBUTING](../CONTRIBUTING.md)
   - [DEVELOPER_GUIDE](../DEVELOPER_GUIDE.md)
+  - [GEOJUMP_SETUP](../GEOJUMP_SETUP.md)
   - [MAINTAINERS](../MAINTAINERS.md)
   - [README](../README.md)
   - [RELEASING](../RELEASING.md)
