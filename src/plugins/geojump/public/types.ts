@@ -1,6 +1,7 @@
 import { NavigationPublicPluginStart } from '../../navigation/public';
 import { DataPublicPluginStart } from '../../data/public';
 import { EmbeddableStart } from '../../embeddable/public';
+import { MapsLegacyPluginSetup, MapsLegacyPluginStart } from '../../maps_legacy/public';
 import { GeojumpCoordinates, GeojumpOptions } from '../common';
 
 export interface GeojumpPluginSetup {
@@ -15,10 +16,15 @@ export interface GeojumpPluginStart {
   addMapControl(mapContainer: HTMLElement, options?: any): { destroy: () => void };
 }
 
+export interface AppPluginSetupDependencies {
+  mapsLegacy: MapsLegacyPluginSetup;
+}
+
 export interface AppPluginStartDependencies {
   navigation: NavigationPublicPluginStart;
   data: DataPublicPluginStart;
   embeddable: EmbeddableStart;
+  mapsLegacy: MapsLegacyPluginStart;
 }
 
 export interface GeojumpState {

@@ -8,11 +8,11 @@ import ReactDOM from 'react-dom';
 import React from 'react';
 import { GeojumpMapControl } from './components/geojump_map_control';
 
-export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginStart> {
+export class GeojumpPluginRefactored implements Plugin<GeojumpPluginSetup, GeojumpPluginStart> {
   private geojumpService: GeojumpServiceRefactored | null = null;
 
   public setup(core: CoreSetup, plugins: AppPluginSetupDependencies): GeojumpPluginSetup {
-    console.log('🔍 GeoJump REFACTORED: Setting up plugin with mapsLegacy dependency:', plugins.mapsLegacy);
+    console.log('🔍 GeoJump: Setting up refactored plugin with mapsLegacy dependency:', plugins.mapsLegacy);
     
     // Register an application into the side navigation menu
     core.application.register({
@@ -42,7 +42,7 @@ export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginSt
   }
 
   public start(core: CoreStart, plugins: AppPluginStartDependencies): GeojumpPluginStart {
-    console.log('🔍 GeoJump REFACTORED: Starting plugin with mapsLegacy:', plugins.mapsLegacy);
+    console.log('🔍 GeoJump: Starting refactored plugin with mapsLegacy:', plugins.mapsLegacy);
     
     // Initialize the refactored geojump service
     this.geojumpService = new GeojumpServiceRefactored();
@@ -138,7 +138,7 @@ export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginSt
    * Add GeoJump controls to existing maps (simplified approach)
    */
   private addGeojumpControlsToMaps() {
-    console.log('🔍 GeoJump REFACTORED: Setting up map control observer');
+    console.log('🔍 GeoJump: Setting up map control observer');
 
     // Use MutationObserver to detect when map elements are added to the DOM
     const observer = new MutationObserver((mutations) => {
@@ -232,16 +232,13 @@ export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginSt
    * Add a GeoJump control to a specific map container
    */
   private addControlToMap(mapContainer: HTMLElement) {
-    // Check for existing controls more thoroughly
-    if (mapContainer.hasAttribute('data-geojump-control') || 
-        mapContainer.querySelector('.geojump-map-control-overlay')) {
-      console.log('🔍 GeoJump REFACTORED: Control already exists on container, skipping');
+    // Mark the container to prevent adding multiple controls
+    if (mapContainer.hasAttribute('data-geojump-control')) {
       return;
     }
-    
     mapContainer.setAttribute('data-geojump-control', 'true');
     
-    console.log('🔍 GeoJump REFACTORED: Adding control to map container:', mapContainer);
+    console.log('🔍 GeoJump: Adding control to map container:', mapContainer);
     
     // Create a control container
     const controlContainer = document.createElement('div');
@@ -251,7 +248,7 @@ export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginSt
       top: 10px;
       right: 10px;
       z-index: 1000;
-      pointer-events: auto;
+      pointer-events: none;
     `;
     
     // Make sure the map container has relative positioning
@@ -276,7 +273,7 @@ export class GeojumpPlugin implements Plugin<GeojumpPluginSetup, GeojumpPluginSt
       controlContainer
     );
     
-    console.log('🔍 GeoJump REFACTORED: Control added to map container');
+    console.log('🔍 GeoJump: Control added to map container');
   }
 }
 
@@ -294,7 +291,7 @@ if (typeof window !== 'undefined') {
       const plugin = (window as any).__geojumpPlugin;
       if (plugin && plugin.rescanMaps) {
         await plugin.rescanMaps();
-        console.log('🔍 GeoJump REFACTORED: Maps rescanned');
+        console.log('🔍 GeoJump: Maps rescanned');
       }
     },
     jumpTo: async (lat: number, lon: number, zoom?: number) => {

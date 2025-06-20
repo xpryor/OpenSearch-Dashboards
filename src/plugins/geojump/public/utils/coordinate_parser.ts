@@ -185,8 +185,10 @@ export class CoordinateParser {
   /**
    * Format coordinates to specified format
    */
-  static formatCoordinates(coordinates: GeojumpCoordinates, format: CoordinateFormat): string {
-    switch (format) {
+  static formatCoordinates(coordinates: GeojumpCoordinates, format: CoordinateFormat | string): string {
+    // Handle string format parameter
+    const coordinateFormat = typeof format === 'string' ? format as CoordinateFormat : format;
+    switch (coordinateFormat) {
       case CoordinateFormat.DECIMAL_DEGREES:
         return `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`;
       

@@ -21,6 +21,7 @@ import {
 import { i18n } from '@osd/i18n';
 import { GeojumpService } from '../services/geojump_service';
 import { GeojumpCoordinates, CoordinateFormat, DEFAULT_ZOOM_LEVEL } from '../../common';
+import { CoordinateParser } from '../utils/coordinate_parser';
 
 interface GeojumpPanelProps {
   geojumpService: GeojumpService;
@@ -62,6 +63,7 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
   // Validate input as user types
   useEffect(() => {
@@ -71,7 +73,7 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
       return;
     }
 
-    const validation = geojumpService.validateCoordinates(coordinateInput);
+    const validation = CoordinateParser.validateInput(coordinateInput);
     setIsValid(validation.isValid);
     setError(validation.error || null);
   }, [coordinateInput, geojumpService]);
@@ -96,14 +98,32 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
       showMarker,
       animateTransition,
       zoomLevel,
+      debug: debugMode,
     });
+
+    if (debugMode) {
+      // In debug mode, show all available map instances
+      console.log('GeoJump Debug: Available map instances:', (window as any).__geojump_maps || []);
+      
+      // Try to find map elements
+      console.log('GeoJump Debug: Map elements in DOM:');
+      document.querySelectorAll('.mapboxgl-map, .leaflet-container, [data-test-subj*="map"], .vis-map, .tile-map, .region-map, .visMapChart, .mapContainer').forEach(el => {
+        console.log(' - ', el);
+      });
+      
+      // Try to find visualizations
+      console.log('GeoJump Debug: Visualization elements in DOM:');
+      document.querySelectorAll('.visualization, .visWrapper, .embPanel').forEach(el => {
+        console.log(' - ', el);
+      });
+    }
 
     if (onJump) {
       onJump(jumpCoordinates);
     }
 
     setError(null);
-  }, [coordinateInput, isValid, zoomLevel, showMarker, animateTransition, geojumpService, onJump]);
+  }, [coordinateInput, isValid, zoomLevel, showMarker, animateTransition, geojumpService, onJump, debugMode]);
 
   const handleKeyPress = useCallback(
     (event: React.KeyboardEvent) => {
@@ -315,6 +335,16 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
           />
         </EuiFlexItem>
       </EuiFlexGroup>
+
+      <EuiSpacer size="s" />
+      
+      <EuiSwitch
+        label={i18n.translate('geojump.debugMode.label', {
+          defaultMessage: 'Debug mode',
+        })}
+        checked={debugMode}
+        onChange={(e) => setDebugMode(e.target.checked)}
+      />
 
       <EuiSpacer size="l" />
 

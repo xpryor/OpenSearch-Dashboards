@@ -4,6 +4,6 @@
   "opensearchDashboardsVersion": "opensearchDashboards",
   "server": false,
   "ui": true,
-  "requiredPlugins": ["navigation", "data", "embeddable"],
-  "optionalPlugins": ["mapsLegacy", "tileMap", "regionMap", "dashboard"]
+  "requiredPlugins": ["navigation", "data", "embeddable", "mapsLegacy"],
+  "optionalPlugins": ["tileMap", "regionMap", "dashboard"]
 }

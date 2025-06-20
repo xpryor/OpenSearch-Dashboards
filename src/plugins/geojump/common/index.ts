@@ -1,6 +1,9 @@
 export const PLUGIN_ID = 'geojump';
 export const PLUGIN_NAME = 'GeoJump';
 
+// Enable debug mode for troubleshooting
+export const DEBUG_MODE = true;
+
 // Coordinate formats supported
 export enum CoordinateFormat {
   DECIMAL_DEGREES = 'decimal_degrees',
@@ -28,6 +31,8 @@ export const COORDINATE_PATTERNS = {
 // Event types for geojump actions
 export const GEOJUMP_EVENTS = {
   JUMP_TO_COORDINATES: 'geojump:jumpToCoordinates',
+  JUMP_SUCCESS: 'geojump:jumpSuccess',
+  JUMP_FAILURE: 'geojump:jumpFailure',
   COORDINATES_CHANGED: 'geojump:coordinatesChanged',
   FORMAT_CHANGED: 'geojump:formatChanged',
 };
@@ -43,4 +48,5 @@ export interface GeojumpOptions {
   markerDuration?: number;
   animateTransition?: boolean;
   zoomLevel?: number;
+  debug?: boolean;
 }

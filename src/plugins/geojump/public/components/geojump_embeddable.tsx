@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { GeojumpPanel } from './geojump_panel';
 import { MapIntegration } from './map_integration';
-import { GeojumpService } from '../services/geojump_service';
+import { GeojumpServiceRefactored } from '../services/geojump_service_refactored';
 
 interface GeojumpEmbeddableProps {
   container: HTMLElement;
@@ -14,14 +14,14 @@ interface GeojumpEmbeddableProps {
  * Embeddable version of GeoJump that can be integrated into dashboards
  */
 export class GeojumpEmbeddable {
-  private geojumpService: GeojumpService;
+  private geojumpService: GeojumpServiceRefactored;
   private container: HTMLElement;
   private props: GeojumpEmbeddableProps;
 
   constructor(props: GeojumpEmbeddableProps) {
     this.props = props;
     this.container = props.container;
-    this.geojumpService = new GeojumpService();
+    this.geojumpService = new GeojumpServiceRefactored();
     this.render();
   }
 

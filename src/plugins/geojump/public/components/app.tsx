@@ -31,7 +31,9 @@ import { EmbeddableStart } from '../../../embeddable/public';
 import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
 import { GeojumpPanel } from './geojump_panel';
 import { MapIntegration } from './map_integration';
-import { GeojumpService } from '../services/geojump_service';
+import { GeojumpService, GeojumpEvent } from '../services/geojump_service';
+import { GeojumpServiceRefactored } from '../services/geojump_service_refactored';
+import { GeojumpTestPanel } from './geojump_test_panel';
 
 interface GeojumpAppDeps {
   basename: string;
@@ -52,14 +54,14 @@ export const GeojumpApp = ({
 }: GeojumpAppDeps) => {
   const [selectedTab, setSelectedTab] = useState('geojump');
   const [recentJumps, setRecentJumps] = useState<any[]>([]);
-  const geojumpServiceRef = useRef<GeojumpService | null>(null);
+  const geojumpServiceRef = useRef<GeojumpServiceRefactored | null>(null);
 
   // Initialize geojump service
   useEffect(() => {
-    geojumpServiceRef.current = new GeojumpService();
+    geojumpServiceRef.current = new GeojumpServiceRefactored();
     
     // Subscribe to jump events to track recent jumps
-    const subscription = geojumpServiceRef.current.getEvents().subscribe((event) => {
+    const subscription = geojumpServiceRef.current.getEvents().subscribe((event: GeojumpEvent | null) => {
       if (event?.type === 'geojump:jumpToCoordinates') {
         const { coordinates } = event.payload;
         setRecentJumps(prev => [
@@ -117,9 +119,15 @@ export const GeojumpApp = ({
       }),
     },
     {
-      id: 'help',
-      name: i18n.translate('geojump.tabs.help', {
-        defaultMessage: 'Help',
+      id: 'test',
+      name: i18n.translate('geojump.tabs.test', {
+        defaultMessage: 'Test Panel',
+      }),
+    },
+    {
+      id: 'test',
+      name: i18n.translate('geojump.tabs.test', {
+        defaultMessage: 'Test Panel',
       }),
     },
   ];
@@ -198,6 +206,19 @@ export const GeojumpApp = ({
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        );
+
+      case 'test':
+        return (
+          <div>
+            {geojumpServiceRef.current && (
+              <GeojumpTestPanel
+                onJump={(coords) => geojumpServiceRef.current?.jumpToCoordinates(coords)}
+                getDebugInfo={() => geojumpServiceRef.current?.getDebugInfo()}
+                rescanMaps={() => geojumpServiceRef.current?.rescanMaps()}
+              />
             )}
           </div>
         );
