@@ -1,0 +1,9 @@
+{
+  "id": "geojump",
+  "version": "1.0.0",
+  "opensearchDashboardsVersion": "opensearchDashboards",
+  "server": false,
+  "ui": true,
+  "requiredPlugins": ["navigation", "data", "embeddable"],
+  "optionalPlugins": ["mapsLegacy", "tileMap", "regionMap", "dashboard"]
+}

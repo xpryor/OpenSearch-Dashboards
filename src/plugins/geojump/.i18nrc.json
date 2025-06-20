@@ -1,0 +1,7 @@
+{
+  "prefix": "geojump",
+  "paths": {
+    "geojump": "."
+  },
+  "translations": ["translations/ja-JP.json"]
+}
