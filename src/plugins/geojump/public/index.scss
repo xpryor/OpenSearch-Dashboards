@@ -72,12 +72,14 @@
   // Prevent map drag when interacting with the panel
   .euiPanel {
     pointer-events: auto !important;
+    position: relative !important;
+    z-index: 1001 !important;
     
     * {
       pointer-events: auto !important;
     }
     
-    // Ensure text inputs work properly
+    // Ensure text inputs work properly and are completely isolated
     input[type="text"], 
     input[type="number"],
     .euiFieldText,
@@ -85,9 +87,27 @@
       pointer-events: auto !important;
       user-select: text !important;
       cursor: text !important;
+      position: relative !important;
+      z-index: 1003 !important;
       
       &:focus {
         pointer-events: auto !important;
+        user-select: text !important;
+        z-index: 1004 !important;
+      }
+      
+      &:hover {
+        pointer-events: auto !important;
+        user-select: text !important;
+      }
+      
+      // Prevent double-click zoom on text fields
+      &:not(input[type="range"]) {
+        -webkit-tap-highlight-color: transparent !important;
+        -webkit-touch-callout: default !important;
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
         user-select: text !important;
       }
     }
@@ -95,10 +115,18 @@
     // Prevent any map interaction when hovering over form elements
     .euiFormRow {
       pointer-events: auto !important;
+      position: relative !important;
+      z-index: 1002 !important;
       
       * {
         pointer-events: auto !important;
         user-select: text !important;
+      }
+      
+      // Specifically target the input wrapper
+      > div {
+        position: relative !important;
+        z-index: 1003 !important;
       }
     }
   }
@@ -108,7 +136,91 @@
 .geojump-map-control-overlay:hover {
   .leaflet-container {
     cursor: default !important;
+    pointer-events: none !important;
   }
+}
+
+// Disable map when GeoJump panel is active
+.geojump-map-disabled {
+  .leaflet-container {
+    pointer-events: none !important;
+    cursor: default !important;
+    
+    // Add subtle overlay to indicate map is disabled
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.02);
+      z-index: 999;
+      pointer-events: none;
+    }
+  }
+  
+  .leaflet-control-container {
+    pointer-events: none !important;
+  }
+  
+  .leaflet-clickable {
+    pointer-events: none !important;
+  }
+  
+  .leaflet-interactive {
+    pointer-events: none !important;
+  }
+  
+  // Disable all Leaflet interactions
+  .leaflet-grab,
+  .leaflet-grabbing {
+    cursor: default !important;
+  }
+  
+  // Disable zoom controls
+  .leaflet-control-zoom {
+    pointer-events: none !important;
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+  }
+  
+  // Disable attribution
+  .leaflet-control-attribution {
+    pointer-events: none !important;
+    opacity: 0.5;
+  }
+  
+  // Disable double-click zoom
+  .leaflet-container {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+// Blocking overlay styles
+#geojump-blocking-overlay {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 998 !important;
+  background: transparent !important;
+  pointer-events: auto !important;
+  cursor: default !important;
+  
+  // Prevent all interactions
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 // Ensure the GeoJump control is always on top and clickable
@@ -130,5 +242,22 @@
     -ms-user-select: text !important;
     user-select: text !important;
     cursor: text !important;
+  }
+  
+  // Ensure range slider works properly
+  .euiRange {
+    input[type="range"] {
+      pointer-events: auto !important;
+      cursor: pointer !important;
+    }
+    
+    .euiRange__track {
+      pointer-events: auto !important;
+    }
+    
+    .euiRange__thumb {
+      pointer-events: auto !important;
+      cursor: pointer !important;
+    }
   }
 }

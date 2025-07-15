@@ -34,8 +34,149 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
   const [coordinateInput, setCoordinateInput] = useState('');
   const [zoomLevel, setZoomLevel] = useState(12);
   const [isJumping, setIsJumping] = useState(false);
+  const [isHoveringPanel, setIsHoveringPanel] = useState(false);
   const controlRef = useRef<HTMLDivElement>(null);
   const [controlPosition, setControlPosition] = useState<React.CSSProperties>({});
+
+  // Disable/enable map interactions
+  const disableMapInteractions = () => {
+    if (mapContainer) {
+      // Create a blocking overlay
+      const blockingOverlay = document.createElement('div');
+      blockingOverlay.id = 'geojump-blocking-overlay';
+      blockingOverlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 998;
+        background: transparent;
+        pointer-events: auto;
+        cursor: default;
+      `;
+      
+      // Add event listeners to the overlay to prevent all events
+      const preventEvent = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      };
+      
+      const events = [
+        'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick',
+        'touchstart', 'touchmove', 'touchend', 'wheel', 'contextmenu',
+        'drag', 'dragstart', 'dragend', 'select', 'selectstart'
+      ];
+      
+      events.forEach(eventType => {
+        blockingOverlay.addEventListener(eventType, preventEvent, { capture: true, passive: false });
+      });
+      
+      mapContainer.appendChild(blockingOverlay);
+      
+      // Disable Leaflet map interactions
+      const leafletContainer = mapContainer.querySelector('.leaflet-container');
+      if (leafletContainer) {
+        (leafletContainer as HTMLElement).style.pointerEvents = 'none';
+        (leafletContainer as HTMLElement).style.cursor = 'default';
+      }
+      
+      // Add a class to indicate map is disabled
+      mapContainer.classList.add('geojump-map-disabled');
+    }
+  };
+
+  const enableMapInteractions = () => {
+    if (mapContainer) {
+      // Remove the blocking overlay
+      const blockingOverlay = mapContainer.querySelector('#geojump-blocking-overlay');
+      if (blockingOverlay) {
+        blockingOverlay.remove();
+      }
+      
+      // Re-enable Leaflet map interactions
+      const leafletContainer = mapContainer.querySelector('.leaflet-container');
+      if (leafletContainer) {
+        (leafletContainer as HTMLElement).style.pointerEvents = 'auto';
+        (leafletContainer as HTMLElement).style.cursor = '';
+      }
+      
+      // Remove the disabled class
+      mapContainer.classList.remove('geojump-map-disabled');
+    }
+  };
+
+  // Handle panel hover state with more aggressive event prevention
+  const handlePanelMouseEnter = () => {
+    setIsHoveringPanel(true);
+    disableMapInteractions();
+    
+    // Also prevent events on the document level
+    document.addEventListener('mousedown', preventMapEvents, { capture: true });
+    document.addEventListener('mouseup', preventMapEvents, { capture: true });
+    document.addEventListener('mousemove', preventMapEvents, { capture: true });
+    document.addEventListener('dblclick', preventMapEvents, { capture: true });
+    document.addEventListener('wheel', preventMapEvents, { capture: true });
+  };
+
+  const handlePanelMouseLeave = () => {
+    setIsHoveringPanel(false);
+    enableMapInteractions();
+    
+    // Remove document level event prevention
+    document.removeEventListener('mousedown', preventMapEvents, { capture: true });
+    document.removeEventListener('mouseup', preventMapEvents, { capture: true });
+    document.removeEventListener('mousemove', preventMapEvents, { capture: true });
+    document.removeEventListener('dblclick', preventMapEvents, { capture: true });
+    document.removeEventListener('wheel', preventMapEvents, { capture: true });
+  };
+
+  // Prevent map events when hovering panel
+  const preventMapEvents = (e: Event) => {
+    const target = e.target as HTMLElement;
+    
+    // Only prevent if the event is coming from the map area, not our panel
+    if (target && !target.closest('.geojump-map-control-overlay')) {
+      const mapElement = target.closest('.leaflet-container, .mapboxgl-map');
+      if (mapElement) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    }
+  };
+
+  // Clean up on unmount or when popover closes
+  useEffect(() => {
+    if (!isPopoverOpen && isHoveringPanel) {
+      enableMapInteractions();
+      setIsHoveringPanel(false);
+      
+      // Clean up document listeners
+      document.removeEventListener('mousedown', preventMapEvents, { capture: true });
+      document.removeEventListener('mouseup', preventMapEvents, { capture: true });
+      document.removeEventListener('mousemove', preventMapEvents, { capture: true });
+      document.removeEventListener('dblclick', preventMapEvents, { capture: true });
+      document.removeEventListener('wheel', preventMapEvents, { capture: true });
+    }
+  }, [isPopoverOpen, isHoveringPanel]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      enableMapInteractions();
+      
+      // Clean up document listeners
+      document.removeEventListener('mousedown', preventMapEvents, { capture: true });
+      document.removeEventListener('mouseup', preventMapEvents, { capture: true });
+      document.removeEventListener('mousemove', preventMapEvents, { capture: true });
+      document.removeEventListener('dblclick', preventMapEvents, { capture: true });
+      document.removeEventListener('wheel', preventMapEvents, { capture: true });
+    };
+  }, []);
 
   // Calculate position based on the map container
   useEffect(() => {
@@ -269,17 +410,33 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
             zIndex: 1001,
             width: '320px',
           }}
+          onMouseEnter={handlePanelMouseEnter}
+          onMouseLeave={handlePanelMouseLeave}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
+          onDrag={(e) => e.stopPropagation()}
+          onDragStart={(e) => e.stopPropagation()}
+          onDragEnd={(e) => e.stopPropagation()}
+          onSelect={(e) => e.stopPropagation()}
+          onSelectStart={(e) => e.stopPropagation()}
         >
           <EuiPanel 
             paddingSize="s"
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
             onMouseMove={(e) => e.stopPropagation()}
+            onDrag={(e) => e.stopPropagation()}
+            onDragStart={(e) => e.stopPropagation()}
+            onDragEnd={(e) => e.stopPropagation()}
+            onSelect={(e) => e.stopPropagation()}
+            onSelectStart={(e) => e.stopPropagation()}
+            style={{ 
+              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.1)',
+            }}
           >
             <EuiTitle size="xs">
               <h4>
@@ -299,35 +456,112 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
               })}
             >
               <div
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                onMouseMove={(e) => e.stopPropagation()}
-                onDrag={(e) => e.stopPropagation()}
-                onDragStart={(e) => e.stopPropagation()}
-                onDragEnd={(e) => e.stopPropagation()}
-                onSelect={(e) => e.stopPropagation()}
-                onSelectStart={(e) => e.stopPropagation()}
-                style={{ userSelect: 'text' }}
+                style={{ 
+                  userSelect: 'text',
+                  position: 'relative',
+                  zIndex: 1002,
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onMouseUp={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onMouseMove={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onDrag={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onDragEnd={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onSelect={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
+                onSelectStart={(e) => {
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                }}
               >
                 <EuiFieldText
                   placeholder="40.7128, -74.0060"
                   value={coordinateInput}
                   onChange={(e) => setCoordinateInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onMouseUp={(e) => e.stopPropagation()}
-                  onMouseMove={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.stopPropagation()}
-                  onBlur={(e) => e.stopPropagation()}
-                  onSelect={(e) => e.stopPropagation()}
-                  onDrag={(e) => e.stopPropagation()}
-                  onDragStart={(e) => e.stopPropagation()}
-                  onDragEnd={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onTouchMove={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onMouseUp={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onMouseMove={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onFocus={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onBlur={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onSelect={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onDrag={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onDragEnd={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onTouchMove={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                  }}
                   compressed
-                  style={{ userSelect: 'text', cursor: 'text' }}
+                  style={{ 
+                    userSelect: 'text', 
+                    cursor: 'text',
+                    position: 'relative',
+                    zIndex: 1003,
+                  }}
                 />
               </div>
             </EuiFormRow>
@@ -339,27 +573,40 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
                 defaultMessage: 'Zoom Level',
               })}
             >
-              <EuiFlexGroup alignItems="center" gutterSize="s">
-                <EuiFlexItem>
-                  <EuiRange
-                    min={1}
-                    max={18}
-                    value={zoomLevel}
-                    onChange={(e) => setZoomLevel(parseInt(e.currentTarget.value, 10))}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onMouseMove={(e) => e.stopPropagation()}
-                    showTicks
-                    tickInterval={2}
-                    compressed
-                  />
-                </EuiFlexItem>
-                <EuiFlexItem grow={false}>
-                  <EuiText size="s" style={{ minWidth: '20px' }}>
-                    {zoomLevel}
-                  </EuiText>
-                </EuiFlexItem>
-              </EuiFlexGroup>
+              <div
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onMouseMove={(e) => e.stopPropagation()}
+                onDrag={(e) => e.stopPropagation()}
+                onDragStart={(e) => e.stopPropagation()}
+                onDragEnd={(e) => e.stopPropagation()}
+                style={{ userSelect: 'none' }}
+              >
+                <EuiFlexGroup alignItems="center" gutterSize="s">
+                  <EuiFlexItem>
+                    <EuiRange
+                      min={1}
+                      max={18}
+                      value={zoomLevel}
+                      onChange={(e) => setZoomLevel(parseInt(e.currentTarget.value, 10))}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseUp={(e) => e.stopPropagation()}
+                      onMouseMove={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => e.stopPropagation()}
+                      onTouchEnd={(e) => e.stopPropagation()}
+                      showTicks
+                      tickInterval={2}
+                      compressed
+                    />
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiText size="s" style={{ minWidth: '20px' }}>
+                      {zoomLevel}
+                    </EuiText>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </div>
             </EuiFormRow>
             
             <EuiSpacer size="s" />
