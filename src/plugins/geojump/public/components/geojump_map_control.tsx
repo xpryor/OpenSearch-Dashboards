@@ -41,8 +41,6 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
   // Disable only the map elements, not the entire container
   const disableMapInteractions = () => {
     if (mapContainer) {
-      console.log('🔍 GeoJump: Disabling map interactions');
-      
       // Disable pointer events on the Leaflet container specifically
       const leafletContainer = mapContainer.querySelector('.leaflet-container');
       if (leafletContainer) {
@@ -63,8 +61,6 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
 
   const enableMapInteractions = () => {
     if (mapContainer) {
-      console.log('🔍 GeoJump: Enabling map interactions');
-      
       // Re-enable pointer events on the Leaflet container
       const leafletContainer = mapContainer.querySelector('.leaflet-container');
       if (leafletContainer) {
@@ -110,10 +106,8 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
   // Disable map interactions when popover is open
   useEffect(() => {
     if (isPopoverOpen) {
-      console.log('🔍 GeoJump: Disabling map interactions - popover opened');
       disableMapInteractions();
     } else {
-      console.log('🔍 GeoJump: Enabling map interactions - popover closed');
       enableMapInteractions();
     }
     
@@ -207,10 +201,6 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
         zoom: zoomLevel,
       };
 
-      console.log('🔍 GeoJump: Parsed coordinates from input:', coordinateInput.trim());
-      console.log('🔍 GeoJump: Jumping to coordinates from map control:', coordsWithZoom);
-      console.log('🔍 GeoJump: Expected location: lat=' + coordsWithZoom.lat + ', lon=' + coordsWithZoom.lon);
-      
       await onJump(coordsWithZoom, { 
         zoomLevel,
         showMarker: true,

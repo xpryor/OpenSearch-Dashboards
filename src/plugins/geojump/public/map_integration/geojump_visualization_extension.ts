@@ -159,7 +159,6 @@ export class GeojumpVisualizationExtension {
         // Look for tile map visualization
         if (win.TileMapVisualization || (win.tileMapVisualization && win.tileMapVisualization.TileMapVisualization)) {
           const TileMapVis = win.TileMapVisualization || win.tileMapVisualization.TileMapVisualization;
-          console.log('🔍 GeoJump: Found TileMapVisualization');
           this.extendTileMapVisualization(TileMapVis);
           return;
         }
@@ -181,15 +180,11 @@ export class GeojumpVisualizationExtension {
       return;
     }
 
-    console.log('🔍 GeoJump: Extending TileMapVisualization');
-
     // Store original updateGeohashAgg method
     const originalUpdateGeohashAgg = TileMapVisualizationClass.prototype.updateGeohashAgg;
 
     // Extend updateGeohashAgg to add GeoJump functionality
     TileMapVisualizationClass.prototype.updateGeohashAgg = function() {
-      console.log('🔍 GeoJump: Intercepted updateGeohashAgg call');
-      
       // Call original method
       if (originalUpdateGeohashAgg) {
         originalUpdateGeohashAgg.call(this);
@@ -202,7 +197,6 @@ export class GeojumpVisualizationExtension {
     };
 
     TileMapVisualizationClass.__geojumpExtended = true;
-    console.log('🔍 GeoJump: TileMapVisualization extension complete');
   }
 
   /**
@@ -216,7 +210,6 @@ export class GeojumpVisualizationExtension {
         // Look for region map visualization
         if (win.RegionMapVisualization || (win.regionMapVisualization && win.regionMapVisualization.RegionMapVisualization)) {
           const RegionMapVis = win.RegionMapVisualization || win.regionMapVisualization.RegionMapVisualization;
-          console.log('🔍 GeoJump: Found RegionMapVisualization');
           this.extendRegionMapVisualization(RegionMapVis);
           return;
         }
@@ -238,14 +231,10 @@ export class GeojumpVisualizationExtension {
       return;
     }
 
-    console.log('🔍 GeoJump: Extending RegionMapVisualization');
-
     // Similar extension as TileMapVisualization
     const originalRender = RegionMapVisualizationClass.prototype.render;
 
     RegionMapVisualizationClass.prototype.render = async function(opensearchResponse: any, visParams: any) {
-      console.log('🔍 GeoJump: Intercepted RegionMapVisualization render call');
-      
       const result = await originalRender.call(this, opensearchResponse, visParams);
       
       if (this._opensearchDashboardsMap) {
@@ -256,7 +245,6 @@ export class GeojumpVisualizationExtension {
     };
 
     RegionMapVisualizationClass.__geojumpExtended = true;
-    console.log('🔍 GeoJump: RegionMapVisualization extension complete');
   }
 
   /**

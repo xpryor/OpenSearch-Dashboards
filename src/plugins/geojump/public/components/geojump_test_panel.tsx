@@ -77,10 +77,8 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
         zoom: parseInt(zoom, 10),
       };
 
-      console.log('🔍 GeoJump Test: Jumping to coordinates:', coordinates);
       const result = await onJump(coordinates);
       setLastResult(result);
-      console.log('🔍 GeoJump Test: Jump result:', result);
     } catch (error) {
       console.error('🔍 GeoJump Test: Jump error:', error);
       setLastResult(false);
@@ -91,7 +89,6 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
 
   const handleRescan = async () => {
     if (rescanMaps) {
-      console.log('🔍 GeoJump Test: Rescanning maps');
       await rescanMaps();
       
       // Update debug info
