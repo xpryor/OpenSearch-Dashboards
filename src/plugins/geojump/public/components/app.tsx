@@ -32,7 +32,6 @@ import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
 import { GeojumpPanel } from './geojump_panel';
 import { MapIntegration } from './map_integration';
 import { GeojumpService, GeojumpEvent } from '../services/geojump_service';
-import { GeojumpServiceRefactored } from '../services/geojump_service_refactored';
 import { GeojumpTestPanel } from './geojump_test_panel';
 
 interface GeojumpAppDeps {
@@ -54,11 +53,11 @@ export const GeojumpApp = ({
 }: GeojumpAppDeps) => {
   const [selectedTab, setSelectedTab] = useState('geojump');
   const [recentJumps, setRecentJumps] = useState<any[]>([]);
-  const geojumpServiceRef = useRef<GeojumpServiceRefactored | null>(null);
+  const geojumpServiceRef = useRef<GeojumpService | null>(null);
 
   // Initialize geojump service
   useEffect(() => {
-    geojumpServiceRef.current = new GeojumpServiceRefactored();
+    geojumpServiceRef.current = new GeojumpService();
     
     // Subscribe to jump events to track recent jumps
     const subscription = geojumpServiceRef.current.getEvents().subscribe((event: GeojumpEvent | null) => {
@@ -245,7 +244,7 @@ export const GeojumpApp = ({
               <h4>Supported Coordinate Formats</h4>
               <ul>
                 <li>
-                  <strong>Decimal Degrees:</strong> <EuiCode>40.7128, -74.0060</EuiCode>
+                  <strong>Decimal Degrees:</strong> <EuiCode>37.773972, -122.431297</EuiCode>
                 </li>
                 <li>
                   <strong>Degrees, Minutes, Seconds:</strong> <EuiCode>40°42'46"N 74°0'21"W</EuiCode>

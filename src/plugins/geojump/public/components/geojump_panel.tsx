@@ -101,22 +101,7 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
       debug: debugMode,
     });
 
-    if (debugMode) {
-      // In debug mode, show all available map instances
-      console.log('GeoJump Debug: Available map instances:', (window as any).__geojump_maps || []);
-      
-      // Try to find map elements
-      console.log('GeoJump Debug: Map elements in DOM:');
-      document.querySelectorAll('.mapboxgl-map, .leaflet-container, [data-test-subj*="map"], .vis-map, .tile-map, .region-map, .visMapChart, .mapContainer').forEach(el => {
-        console.log(' - ', el);
-      });
-      
-      // Try to find visualizations
-      console.log('GeoJump Debug: Visualization elements in DOM:');
-      document.querySelectorAll('.visualization, .visWrapper, .embPanel').forEach(el => {
-        console.log(' - ', el);
-      });
-    }
+    // Debug mode functionality removed to reduce console clutter
 
     if (onJump) {
       onJump(jumpCoordinates);
@@ -133,6 +118,27 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
     },
     [handleJump, isValid]
   );
+
+  // Event handlers to prevent map dragging when interacting with text inputs
+  const handleInputFocus = useCallback((event: React.FocusEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputMouseDown = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputMouseUp = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputSelect = useCallback((event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputDoubleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
 
   const handleFormatChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const newFormat = e.target.value as CoordinateFormat;
@@ -154,7 +160,13 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
   };
 
   const helpContent = (
-    <div style={{ width: '300px' }}>
+    <div 
+      style={{ width: '300px' }}
+      onMouseDown={handleInputMouseDown}
+      onMouseUp={handleInputMouseUp}
+      onSelect={handleInputSelect}
+      onDoubleClick={handleInputDoubleClick}
+    >
       <EuiText size="s">
         <h4>Supported Coordinate Formats:</h4>
         <ul>
@@ -195,6 +207,11 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
             value={coordinateInput}
             onChange={(e) => setCoordinateInput(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={handleInputFocus}
+            onMouseDown={handleInputMouseDown}
+            onMouseUp={handleInputMouseUp}
+            onSelect={handleInputSelect}
+            onDoubleClick={handleInputDoubleClick}
             isInvalid={!!error}
             compressed
           />
@@ -292,6 +309,11 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
           value={coordinateInput}
           onChange={(e) => setCoordinateInput(e.target.value)}
           onKeyPress={handleKeyPress}
+          onFocus={handleInputFocus}
+          onMouseDown={handleInputMouseDown}
+          onMouseUp={handleInputMouseUp}
+          onSelect={handleInputSelect}
+          onDoubleClick={handleInputDoubleClick}
           isInvalid={!!error}
         />
       </EuiFormRow>
@@ -305,7 +327,7 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
       >
         <EuiRange
           min={1}
-          max={18}
+          max={14}
           value={zoomLevel}
           onChange={(e) => setZoomLevel(parseInt(e.currentTarget.value, 10))}
           showTicks

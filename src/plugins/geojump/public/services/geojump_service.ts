@@ -1,10 +1,8 @@
 import { Subject, Observable } from 'rxjs';
 import { GeojumpCoordinates, GeojumpOptions, GEOJUMP_EVENTS } from '../../common';
 import { CoordinateParser } from '../utils/coordinate_parser';
-import { jumpToCoordinatesSimple } from '../utils/simple_map_jump';
-import { jumpToCoordinatesUsingOpenSearchMaps } from '../utils/opensearch_map_access';
-import { jumpToCoordinatesViaDOMManipulation } from '../utils/direct_map_manipulation';
-import { jumpUsingSimpleAPI } from '../utils/simple_api_approach';
+import { geojumpMapService } from '../map_integration/geojump_map_service';
+import { geojumpVisualizationExtension } from '../map_integration/geojump_visualization_extension';
 
 export interface GeojumpEvent {
   type: string;
@@ -12,14 +10,36 @@ export interface GeojumpEvent {
 }
 
 /**
- * Core service for GeoJump functionality
+ * Core service for GeoJump functionality - API-based approach
  */
 export class GeojumpService {
   private eventSubject = new Subject<GeojumpEvent | null>();
-  private mapInstances: any[] = [];
+  private isInitialized = false;
 
   constructor() {
-    console.log('🔍 GeoJump DEBUG: GeojumpService initialized');
+    console.log('🔍 GeoJump: GeojumpService initialized');
+    this.initialize();
+  }
+
+  /**
+   * Initialize the service
+   */
+  private async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      console.log('🔍 GeoJump: Initializing service components');
+      
+      // Set up the visualization extension
+      await geojumpVisualizationExtension.setup();
+      
+      // Note: Removed periodic scanning for performance - maps will be scanned on-demand
+      
+      this.isInitialized = true;
+      console.log('🔍 GeoJump: Service initialization complete');
+    } catch (error) {
+      console.error('🔍 GeoJump: Error initializing service:', error);
+    }
   }
 
   /**
@@ -46,8 +66,11 @@ export class GeojumpService {
   /**
    * Jump to specific coordinates on all available maps
    */
-  async jumpToCoordinates(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<void> {
-    console.log('🔍 GeoJump DEBUG: Jumping to coordinates:', coordinates, 'with options:', options);
+  async jumpToCoordinates(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
+    console.log('🔍 GeoJump: Jumping to coordinates:', coordinates, 'with options:', options);
+
+    // Ensure service is initialized
+    await this.initialize();
 
     // Emit event
     this.eventSubject.next({
@@ -55,512 +78,261 @@ export class GeojumpService {
       payload: { coordinates, options }
     });
 
-    // Try the simple API approach first (uses same code as tile_map_visualization.js)
-    let success = await jumpUsingSimpleAPI(coordinates, options);
-    
-    if (!success) {
-      console.log('🔍 GeoJump DEBUG: Simple API approach failed, trying other approaches');
-      // Try the simple approach (direct Leaflet API access)
-      success = jumpToCoordinatesSimple(coordinates, options);
-    }
-    
-    if (!success) {
-      console.log('🔍 GeoJump DEBUG: Simple approach failed, trying OpenSearch approach');
-      // Try the OpenSearch Dashboards-aware approach
-      success = jumpToCoordinatesUsingOpenSearchMaps(coordinates, options);
-    }
-    
-    if (!success) {
-      console.log('🔍 GeoJump DEBUG: OpenSearch approach failed, trying DOM manipulation');
-      // Try direct DOM manipulation approach
-      success = jumpToCoordinatesViaDOMManipulation(coordinates, options);
-    }
-    
-    if (!success) {
-      console.log('🔍 GeoJump DEBUG: All approaches failed, trying fallback methods');
-      // Fall back to the original approach
-      this.findAndManipulateMaps(coordinates, options);
-    }
-  }
-
-  /**
-   * Register a map instance
-   */
-  registerMap(mapInstance: any): void {
-    console.log('🔍 GeoJump DEBUG: Registering map instance:', mapInstance);
-    this.mapInstances.push(mapInstance);
-  }
-
-  /**
-   * Find and manipulate all available maps
-   */
-  private findAndManipulateMaps(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): void {
-    console.log('🔍 GeoJump DEBUG: Finding and manipulating maps');
-
-    let mapManipulated = false;
-
-    // Try registered map instances first
-    this.mapInstances.forEach((mapInstance, index) => {
-      console.log(`🔍 GeoJump DEBUG: Trying registered map instance ${index}:`, mapInstance);
-      if (this.tryManipulateMap(mapInstance, coordinates, options)) {
-        mapManipulated = true;
-      }
-    });
-
-    // Try to find maps in the DOM
-    const success = this.findMapsInDOM(coordinates, options);
-    if (success) {
-      mapManipulated = true;
-    }
-
-    // If no maps were manipulated, try a more aggressive approach
-    if (!mapManipulated) {
-      console.log('🔍 GeoJump DEBUG: No maps manipulated, trying aggressive approach');
-      this.tryAggressiveMapSearch(coordinates, options);
-    }
-  }
-
-  /**
-   * Try an aggressive approach to find and manipulate maps
-   */
-  private tryAggressiveMapSearch(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): void {
-    console.log('🔍 GeoJump DEBUG: Starting aggressive map search');
-
-    // Search all DOM elements for map-like objects
-    const allElements = document.querySelectorAll('*');
-    console.log('🔍 GeoJump DEBUG: Searching through', allElements.length, 'DOM elements');
-
-    let mapsFound = 0;
-    
-    for (let i = 0; i < allElements.length && mapsFound < 10; i++) { // Limit to prevent performance issues
-      const element = allElements[i] as any;
-      
-      // Check for common map properties
-      const mapProps = ['_leaflet_map', '_mapboxMap', '_map', 'map', 'mapInstance', '__map'];
-      
-      for (const prop of mapProps) {
-        if (element[prop] && typeof element[prop] === 'object') {
-          const mapObj = element[prop];
-          
-          // Check if this looks like a map object
-          if (typeof mapObj.setView === 'function' || 
-              typeof mapObj.flyTo === 'function' || 
-              typeof mapObj.setCenter === 'function') {
-            
-            console.log(`🔍 GeoJump DEBUG: Found potential map object at element[${prop}]:`, mapObj);
-            
-            if (this.tryManipulateMap(mapObj, coordinates, options)) {
-              mapsFound++;
-              console.log(`🔍 GeoJump DEBUG: Successfully manipulated map ${mapsFound}`);
-            }
-          }
-        }
-      }
-    }
-
-    // Try to access global map objects
-    const win = window as any;
-    const globalMapProps = [
-      'map', 'leafletMap', 'mapboxMap', 'visMap', 'tileMap', 'regionMap',
-      '__map', '__leafletMap', '__mapboxMap', '__visMap'
-    ];
-
-    for (const prop of globalMapProps) {
-      if (win[prop] && typeof win[prop] === 'object') {
-        console.log(`🔍 GeoJump DEBUG: Found global map object at window.${prop}:`, win[prop]);
-        if (this.tryManipulateMap(win[prop], coordinates, options)) {
-          console.log(`🔍 GeoJump DEBUG: Successfully manipulated global map ${prop}`);
-        }
-      }
-    }
-
-    // Try to find OpenSearch Dashboards specific objects
-    if (win.angular) {
-      console.log('🔍 GeoJump DEBUG: Found Angular, searching for OpenSearch Dashboards maps');
-      
-      // Try to find Angular scopes with map objects
-      try {
-        const body = document.querySelector('body');
-        if (body && (body as any).$$childScope) {
-          this.searchAngularScopes((body as any).$$childScope, coordinates, options);
-        }
-      } catch (error) {
-        console.debug('🔍 GeoJump DEBUG: Error searching Angular scopes:', error);
-      }
-    }
-
-    console.log(`🔍 GeoJump DEBUG: Aggressive search completed, found ${mapsFound} maps`);
-  }
-
-  /**
-   * Search Angular scopes for map objects (for OpenSearch Dashboards)
-   */
-  private searchAngularScopes(scope: any, coordinates: GeojumpCoordinates, options: GeojumpOptions, depth = 0): void {
-    if (depth > 5) return; // Prevent infinite recursion
-
-    try {
-      // Check current scope for map objects
-      const mapProps = ['map', 'vis', 'visualization', 'mapHandler', 'leafletMap'];
-      
-      for (const prop of mapProps) {
-        if (scope[prop] && typeof scope[prop] === 'object') {
-          console.log(`🔍 GeoJump DEBUG: Found ${prop} in Angular scope:`, scope[prop]);
-          
-          // Try to access the map
-          const mapObj = scope[prop].map || scope[prop]._map || scope[prop];
-          
-          if (mapObj && (typeof mapObj.setView === 'function' || 
-                        typeof mapObj.flyTo === 'function' || 
-                        typeof mapObj.setCenter === 'function')) {
-            console.log('🔍 GeoJump DEBUG: Found map in Angular scope:', mapObj);
-            this.tryManipulateMap(mapObj, coordinates, options);
-          }
-        }
-      }
-
-      // Search child scopes
-      if (scope.$$childHead) {
-        let child = scope.$$childHead;
-        while (child) {
-          this.searchAngularScopes(child, coordinates, options, depth + 1);
-          child = child.$$nextSibling;
-        }
-      }
-    } catch (error) {
-      console.debug('🔍 GeoJump DEBUG: Error in Angular scope search:', error);
-    }
-  }
-
-  /**
-   * Try to manipulate a specific map instance
-   */
-  private tryManipulateMap(mapInstance: any, coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
-    console.log('🔍 GeoJump DEBUG: Trying to manipulate map instance:', mapInstance);
-
-    try {
-      // Try Mapbox GL
-      if (mapInstance.flyTo || mapInstance.setCenter) {
-        console.log('🔍 GeoJump DEBUG: Using Mapbox GL methods');
-        if (mapInstance.flyTo) {
-          mapInstance.flyTo({
-            center: [coordinates.lon, coordinates.lat],
-            zoom: coordinates.zoom || options.zoomLevel || 10
-          });
-        } else if (mapInstance.setCenter) {
-          mapInstance.setCenter([coordinates.lon, coordinates.lat]);
-          if (mapInstance.setZoom) {
-            mapInstance.setZoom(coordinates.zoom || options.zoomLevel || 10);
-          }
-        }
-        return true;
-      }
-
-      // Try Leaflet
-      if (mapInstance.setView) {
-        console.log('🔍 GeoJump DEBUG: Using Leaflet setView method');
-        mapInstance.setView([coordinates.lat, coordinates.lon], coordinates.zoom || options.zoomLevel || 10);
-        return true;
-      }
-
-      // Try OpenLayers
-      if (mapInstance.getView && mapInstance.getView().setCenter) {
-        console.log('🔍 GeoJump DEBUG: Using OpenLayers methods');
-        const view = mapInstance.getView();
-        view.setCenter([coordinates.lon, coordinates.lat]);
-        view.setZoom(coordinates.zoom || options.zoomLevel || 10);
-        return true;
-      }
-
-    } catch (error) {
-      console.error('🔍 GeoJump DEBUG: Error manipulating map instance:', error);
-    }
-
-    return false;
-  }
-
-  /**
-   * Find maps in the DOM and try to manipulate them
-   */
-  private findMapsInDOM(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
-    console.log('🔍 GeoJump DEBUG: Finding maps in DOM');
-
     let success = false;
 
-    // Find map containers
-    const mapContainers = this.findMapContainers();
-    
-    mapContainers.forEach((container, index) => {
-      console.log(`🔍 GeoJump DEBUG: Processing map container ${index}:`, container);
-      
-      // Try different map access strategies
-      const containerSuccess = this.tryDirectMapboxAccess(container, coordinates, options) ||
-                              this.tryDirectLeafletAccess(container, coordinates, options) ||
-                              this.tryCustomEventDispatch(container, coordinates, options);
-      
-      if (containerSuccess) {
-        success = true;
-        console.log(`🔍 GeoJump DEBUG: Successfully manipulated map in container ${index}`);
-      }
-    });
-
-    return success;
-  }
-
-  /**
-   * Find map containers in the DOM
-   */
-  private findMapContainers(): HTMLElement[] {
-    const containers: HTMLElement[] = [];
-    
-    const selectors = [
-      '.mapboxgl-map',
-      '.leaflet-container',
-      '[data-test-subj*="map"]',
-      '.vis-map',
-      '.tile-map',
-      '.region-map',
-      '.embPanel__content [class*="map"]',
-      '.visMapChart',
-      '.mapContainer',
-      '.mapboxgl-canvas-container',
-      '.leaflet-map-pane',
-      '.embPanel [data-render-complete="true"]',
-      '.visWrapper'
-    ];
-
-    selectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(el => {
-        if (el instanceof HTMLElement) {
-          containers.push(el);
-        }
-      });
-    });
-
-    return containers;
-  }
-
-  /**
-   * Try to directly access a Mapbox GL map
-   */
-  private tryDirectMapboxAccess(container: HTMLElement, coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
-    console.log('🔍 GeoJump DEBUG: Trying direct Mapbox access for container:', container);
-    
     try {
-      // Try to find the Mapbox map instance
-      const mapboxMap = this.findMapboxMap(container);
+      // Try the visualization extension first (most reliable)
+      success = await geojumpVisualizationExtension.jumpToCoordinates(coordinates, options);
       
-      if (mapboxMap) {
-        console.log('🔍 GeoJump DEBUG: Found Mapbox map instance:', mapboxMap);
-        
-        if (mapboxMap.flyTo) {
-          console.log('🔍 GeoJump DEBUG: Using Mapbox flyTo method');
-          mapboxMap.flyTo({
-            center: [coordinates.lon, coordinates.lat],
-            zoom: coordinates.zoom || options.zoomLevel || 10
-          });
-          return true;
-        }
+      if (success) {
+        console.log('🔍 GeoJump: Successfully jumped via visualization extension');
+        this.emitJumpSuccess(coordinates, options);
+        return true;
       }
+
+      // Try the map service directly
+      success = await geojumpMapService.jumpToCoordinates(coordinates, options);
+      
+      if (success) {
+        console.log('🔍 GeoJump: Successfully jumped via map service');
+        this.emitJumpSuccess(coordinates, options);
+        return true;
+      }
+
+      // Try fallback methods
+      success = await this.tryFallbackMethods(coordinates, options);
+      
+      if (success) {
+        console.log('🔍 GeoJump: Successfully jumped via fallback methods');
+        this.emitJumpSuccess(coordinates, options);
+        return true;
+      }
+
+      console.log('🔍 GeoJump: All jump methods failed');
+      this.emitJumpFailure(coordinates, options, 'No maps found or accessible');
+      return false;
+
     } catch (error) {
-      console.error('🔍 GeoJump DEBUG: Error in tryDirectMapboxAccess:', error);
+      console.error('🔍 GeoJump: Error during jump operation:', error);
+      this.emitJumpFailure(coordinates, options, error.message);
+      return false;
     }
-    
+  }
+
+  /**
+   * Try fallback methods when primary methods fail
+   */
+  private async tryFallbackMethods(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
+    console.log('🔍 GeoJump: Trying fallback methods');
+
+    // Method 1: Try direct Leaflet access
+    if (await this.tryDirectLeafletAccess(coordinates, options)) {
+      return true;
+    }
+
+    // Method 2: Try custom event dispatch
+    if (this.tryCustomEventDispatch(coordinates, options)) {
+      return true;
+    }
+
+    // Method 3: Try URL-based navigation (for some map types)
+    if (this.tryUrlBasedNavigation(coordinates, options)) {
+      return true;
+    }
+
     return false;
   }
 
   /**
-   * Find a Mapbox GL map instance in a container
+   * Try direct Leaflet access as fallback
    */
-  private findMapboxMap(container: HTMLElement): any {
-    console.log('🔍 GeoJump DEBUG: Finding Mapbox map instance in container:', container);
-    
-    // Try to access the map through various properties
-    const possibleProps = ['_map', '__mapboxgl_map', 'map'];
-    
-    for (const prop of possibleProps) {
-      if ((container as any)[prop]) {
-        console.log(`🔍 GeoJump DEBUG: Found Mapbox map via ${prop}:`, (container as any)[prop]);
-        return (container as any)[prop];
+  private async tryDirectLeafletAccess(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
+    console.log('🔍 GeoJump: Trying direct Leaflet access');
+
+    try {
+      // Look for Leaflet containers
+      const leafletContainers = document.querySelectorAll('.leaflet-container');
+      
+      if (leafletContainers.length === 0) {
+        console.log('🔍 GeoJump: No Leaflet containers found');
+        return false;
       }
+
+      let success = false;
+      const zoom = coordinates.zoom || options.zoomLevel || 10;
+
+      leafletContainers.forEach((container) => {
+        // Try to access the Leaflet map instance
+        const leafletMap = (container as any)._leaflet_map;
+        
+        if (leafletMap && typeof leafletMap.setView === 'function') {
+          console.log('🔍 GeoJump: Found Leaflet map, attempting jump');
+          try {
+            leafletMap.setView([coordinates.lat, coordinates.lon], zoom);
+            success = true;
+            console.log('🔍 GeoJump: Successfully jumped with direct Leaflet access');
+          } catch (error) {
+            console.error('🔍 GeoJump: Error with direct Leaflet access:', error);
+          }
+        }
+      });
+
+      return success;
+    } catch (error) {
+      console.error('🔍 GeoJump: Error in tryDirectLeafletAccess:', error);
+      return false;
     }
-    
-    // Try to find in global mapbox instances
-    const win = window as any;
-    if (win.__geojump_maps && win.__geojump_maps.length > 0) {
-      console.log('🔍 GeoJump DEBUG: Found maps in global __geojump_maps:', win.__geojump_maps);
-      return win.__geojump_maps[0];
-    }
-    
-    return null;
   }
 
   /**
-   * Try to dispatch a custom event for unsupported map types
+   * Try custom event dispatch as fallback
    */
-  private tryCustomEventDispatch(container: HTMLElement, coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
-    console.log('🔍 GeoJump DEBUG: Dispatching custom geojump event');
-    
+  private tryCustomEventDispatch(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
+    console.log('🔍 GeoJump: Trying custom event dispatch');
+
     try {
       const event = new CustomEvent('geojump', {
         detail: { coordinates, options },
-        bubbles: true
+        bubbles: true,
+        cancelable: true
       });
-      
-      container.dispatchEvent(event);
+
+      // Dispatch on map containers
+      const mapContainers = document.querySelectorAll(
+        '.leaflet-container, .mapboxgl-map, .vis-map, .tile-map, .region-map, .visualization'
+      );
+
+      let dispatched = false;
+      mapContainers.forEach((container) => {
+        container.dispatchEvent(event);
+        dispatched = true;
+      });
+
+      // Also dispatch on document
       document.dispatchEvent(event);
-      
-      return true;
+      window.dispatchEvent(event);
+
+      if (dispatched) {
+        console.log('🔍 GeoJump: Custom events dispatched');
+        return true;
+      }
+
+      return false;
     } catch (error) {
-      console.error('🔍 GeoJump DEBUG: Error dispatching custom event:', error);
+      console.error('🔍 GeoJump: Error dispatching custom events:', error);
+      return false;
     }
-    
-    return false;
   }
 
   /**
-   * Try to directly manipulate a Leaflet map in OpenSearch Dashboards
+   * Try URL-based navigation for some map types
    */
-  private tryDirectLeafletAccess(container: HTMLElement, coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
-    console.log('🔍 GeoJump DEBUG: Trying direct Leaflet access for container:', container);
-    
+  private tryUrlBasedNavigation(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): boolean {
+    console.log('🔍 GeoJump: Trying URL-based navigation');
+
     try {
-      // Try to find the Leaflet map instance
-      const leafletMap = this.findLeafletMap(container);
+      // This is a last resort - modify URL hash or query params
+      // Some map applications respond to URL changes
+      const zoom = coordinates.zoom || options.zoomLevel || 10;
+      const hash = `#map=${zoom}/${coordinates.lat}/${coordinates.lon}`;
       
-      if (leafletMap) {
-        console.log('🔍 GeoJump DEBUG: Found Leaflet map instance:', leafletMap);
+      // Only modify hash if we're on a page that might respond to it
+      if (window.location.pathname.includes('dashboard') || 
+          window.location.pathname.includes('visualize') ||
+          document.querySelector('.vis-map, .tile-map, .region-map')) {
         
-        // Try to use the map instance
-        if (typeof leafletMap.setView === 'function') {
-          console.log('🔍 GeoJump DEBUG: Using Leaflet setView method');
-          leafletMap.setView([coordinates.lat, coordinates.lon], coordinates.zoom || options.zoomLevel || 10);
-          return true;
-        }
-      } else {
-        console.log('🔍 GeoJump DEBUG: No Leaflet map instance found, trying direct DOM manipulation');
+        console.log('🔍 GeoJump: Setting location hash:', hash);
+        window.location.hash = hash;
         
-        // Try direct DOM manipulation for Leaflet maps
-        // This is a last resort approach that might work for some Leaflet maps
+        // Also try setting it as a query parameter
+        const url = new URL(window.location.href);
+        url.searchParams.set('lat', coordinates.lat.toString());
+        url.searchParams.set('lon', coordinates.lon.toString());
+        url.searchParams.set('zoom', zoom.toString());
         
-        // Find the map pane
-        const mapPane = container.querySelector('.leaflet-map-pane');
-        if (mapPane) {
-          console.log('🔍 GeoJump DEBUG: Found leaflet-map-pane:', mapPane);
-          
-          // Try to find the tile layer
-          const tileLayer = container.querySelector('.leaflet-tile-pane');
-          if (tileLayer) {
-            console.log('🔍 GeoJump DEBUG: Found leaflet-tile-pane:', tileLayer);
-            
-            // Try to inject a script to manipulate the map
-            this.injectLeafletScript(coordinates, options);
-          }
-        }
+        // Use history API to avoid page reload
+        window.history.replaceState({}, '', url.toString());
+        
+        return true;
       }
+
+      return false;
     } catch (error) {
-      console.error('🔍 GeoJump DEBUG: Error in tryDirectLeafletAccess:', error);
+      console.error('🔍 GeoJump: Error with URL-based navigation:', error);
+      return false;
     }
-    
-    return false;
   }
-  
+
   /**
-   * Find a Leaflet map instance in a container
+   * Get debug information about available maps
    */
-  private findLeafletMap(container: HTMLElement): any {
-    console.log('🔍 GeoJump DEBUG: Finding Leaflet map instance in container:', container);
+  public getDebugInfo(): any {
+    const capturedMaps = geojumpMapService.getCapturedMaps();
     
-    // Direct access to _leaflet_map property
-    if ((container as any)._leaflet_map) {
-      console.log('🔍 GeoJump DEBUG: Found _leaflet_map property:', (container as any)._leaflet_map);
-      return (container as any)._leaflet_map;
-    }
+    return {
+      capturedMaps: capturedMaps.length,
+      mapDetails: capturedMaps.map((map, index) => ({
+        index,
+        type: map.type,
+        timestamp: new Date(map.timestamp).toLocaleTimeString(),
+        hasSetCenter: typeof map.instance.setCenter === 'function',
+        hasSetZoomLevel: typeof map.instance.setZoomLevel === 'function',
+        hasSetView: typeof map.instance.setView === 'function',
+        hasLeafletMap: !!map.instance._leafletMap,
+        methods: Object.getOwnPropertyNames(map.instance)
+          .filter(prop => typeof map.instance[prop] === 'function')
+          .slice(0, 5)
+      })),
+      leafletContainers: document.querySelectorAll('.leaflet-container').length,
+      visualizations: document.querySelectorAll('.visualization, .visWrapper, .embPanel').length,
+      isInitialized: this.isInitialized
+    };
+  }
+
+  /**
+   * Force a rescan for maps
+   */
+  public async rescanMaps(): Promise<void> {
+    console.log('🔍 GeoJump: Forcing map rescan');
+    geojumpMapService.clearCapturedMaps();
+    await geojumpVisualizationExtension.setup();
+  }
+
+  /**
+   * Register a map instance manually
+   */
+  public registerMap(mapInstance: any, container?: HTMLElement): void {
+    console.log('🔍 GeoJump: Manually registering map instance:', mapInstance);
     
-    // Try to find the map instance in the container's children
-    const mapPanes = container.querySelectorAll('.leaflet-map-pane');
-    if (mapPanes.length > 0) {
-      console.log('🔍 GeoJump DEBUG: Found leaflet-map-pane elements:', mapPanes);
-      
-      // Try to find the map instance in the parent chain
-      let element: any = mapPanes[0];
-      while (element) {
-        if (element._leaflet_map) {
-          console.log('🔍 GeoJump DEBUG: Found _leaflet_map in parent chain:', element._leaflet_map);
-          return element._leaflet_map;
-        }
-        element = element.parentElement;
+    if (container) {
+      geojumpMapService.captureMap(mapInstance, container, 'opensearch');
+    } else {
+      // Try to find a suitable container
+      const containers = document.querySelectorAll('.leaflet-container, .vis-map, .visualization');
+      if (containers.length > 0) {
+        geojumpMapService.captureMap(mapInstance, containers[0] as HTMLElement, 'opensearch');
       }
     }
-    
-    // Try to access the map through the Leaflet global object
-    const win = window as any;
-    if (win.L && win.L.map && win.L.map._leaflet_id) {
-      console.log('🔍 GeoJump DEBUG: Found Leaflet map through global L object:', win.L.map);
-      return win.L.map;
-    }
-    
-    // Last resort: try to find any Leaflet map in the DOM
-    const allElements = document.querySelectorAll('*');
-    for (let i = 0; i < allElements.length; i++) {
-      const el = allElements[i] as any;
-      if (el._leaflet_map) {
-        console.log('🔍 GeoJump DEBUG: Found _leaflet_map in DOM element:', el, el._leaflet_map);
-        return el._leaflet_map;
-      }
-    }
-    
-    return null;
   }
-  
+
   /**
-   * Inject a script to manipulate a Leaflet map
+   * Emit jump success event
    */
-  private injectLeafletScript(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): void {
-    console.log('🔍 GeoJump DEBUG: Injecting Leaflet script');
-    
-    try {
-      // Create a function to find and manipulate Leaflet maps
-      const findAndManipulateLeafletMaps = () => {
-        console.log('🔍 GeoJump DEBUG: Finding and manipulating Leaflet maps');
-        
-        // Find all Leaflet containers
-        const containers = document.querySelectorAll('.leaflet-container');
-        console.log('🔍 GeoJump DEBUG: Found', containers.length, 'Leaflet containers');
-        
-        // Try to find Leaflet maps
-        containers.forEach((container) => {
-          // Try to find the map instance
-          const map = (container as any)._leaflet_map;
-          if (map) {
-            console.log('🔍 GeoJump DEBUG: Found Leaflet map:', map);
-            
-            // Try to use the map
-            if (typeof map.setView === 'function') {
-              console.log('🔍 GeoJump DEBUG: Using Leaflet setView method');
-              map.setView([coordinates.lat, coordinates.lon], coordinates.zoom || options.zoomLevel || 10);
-            }
-          }
-        });
-        
-        // Try to find Leaflet maps in the window object
-        const win = window as any;
-        if (win.L && win.L.map) {
-          console.log('🔍 GeoJump DEBUG: Found Leaflet map in window.L:', win.L.map);
-          
-          // Try to use the map
-          if (typeof win.L.map.setView === 'function') {
-            console.log('🔍 GeoJump DEBUG: Using Leaflet setView method');
-            win.L.map.setView([coordinates.lat, coordinates.lon], coordinates.zoom || options.zoomLevel || 10);
-          }
-        }
-      };
-      
-      // Execute the function
-      findAndManipulateLeafletMaps();
-    } catch (error) {
-      console.error('🔍 GeoJump DEBUG: Error injecting Leaflet script:', error);
-    }
+  private emitJumpSuccess(coordinates: GeojumpCoordinates, options: GeojumpOptions): void {
+    this.eventSubject.next({
+      type: GEOJUMP_EVENTS.JUMP_SUCCESS,
+      payload: { coordinates, options }
+    });
+  }
+
+  /**
+   * Emit jump failure event
+   */
+  private emitJumpFailure(coordinates: GeojumpCoordinates, options: GeojumpOptions, error: string): void {
+    this.eventSubject.next({
+      type: GEOJUMP_EVENTS.JUMP_FAILURE,
+      payload: { coordinates, options, error }
+    });
   }
 
   /**
@@ -594,8 +366,9 @@ export class GeojumpService {
    * Clean up resources
    */
   destroy(): void {
-    console.log('🔍 GeoJump DEBUG: Destroying GeojumpService');
+    console.log('🔍 GeoJump: Destroying GeojumpService');
     this.eventSubject.complete();
-    this.mapInstances = [];
+    geojumpMapService.destroy();
+    this.isInitialized = false;
   }
 }

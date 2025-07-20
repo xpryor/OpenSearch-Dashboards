@@ -89,7 +89,7 @@ yarn start --no-base-path
 Try these example coordinates:
 
 **Decimal Degrees:**
-- `40.7128, -74.0060` (New York City)
+- `37.773972, -122.431297` (San Francisco)
 - `51.5074, -0.1278` (London)
 - `35.6762, 139.6503` (Tokyo)
 

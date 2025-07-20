@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   EuiPanel,
   EuiTitle,
@@ -109,6 +109,27 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
     }
   };
 
+  // Event handlers to prevent map dragging when interacting with text inputs
+  const handleInputFocus = useCallback((event: React.FocusEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputMouseDown = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputMouseUp = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputSelect = useCallback((event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleInputDoubleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
   return (
     <EuiPanel paddingSize="l">
       <EuiTitle size="m">
@@ -135,6 +156,11 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
           value={lat}
           onChange={(e) => setLat(e.target.value)}
           placeholder="40.7128"
+          onFocus={handleInputFocus}
+          onMouseDown={handleInputMouseDown}
+          onMouseUp={handleInputMouseUp}
+          onSelect={handleInputSelect}
+          onDoubleClick={handleInputDoubleClick}
         />
       </EuiFormRow>
 
@@ -143,6 +169,11 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
           value={lon}
           onChange={(e) => setLon(e.target.value)}
           placeholder="-74.0060"
+          onFocus={handleInputFocus}
+          onMouseDown={handleInputMouseDown}
+          onMouseUp={handleInputMouseUp}
+          onSelect={handleInputSelect}
+          onDoubleClick={handleInputDoubleClick}
         />
       </EuiFormRow>
 
@@ -151,6 +182,11 @@ export const GeojumpTestPanel: React.FC<GeojumpTestPanelProps> = ({
           value={zoom}
           onChange={(e) => setZoom(e.target.value)}
           placeholder="12"
+          onFocus={handleInputFocus}
+          onMouseDown={handleInputMouseDown}
+          onMouseUp={handleInputMouseUp}
+          onSelect={handleInputSelect}
+          onDoubleClick={handleInputDoubleClick}
         />
       </EuiFormRow>
 

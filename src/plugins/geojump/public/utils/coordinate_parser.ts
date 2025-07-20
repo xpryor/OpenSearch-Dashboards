@@ -255,7 +255,7 @@ export class CoordinateParser {
     if (!coordinates) {
       return { 
         isValid: false, 
-        error: 'Invalid coordinate format. Try: "40.7128, -74.0060" or "40°42\'46"N 74°0\'21"W"' 
+        error: 'Invalid coordinate format. Try: "37.773972, -122.431297" or "40°42\'46"N 74°0\'21"W"' 
       };
     }
 

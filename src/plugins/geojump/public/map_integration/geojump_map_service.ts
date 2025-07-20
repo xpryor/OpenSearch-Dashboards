@@ -29,22 +29,16 @@ export class GeojumpMapService {
     if (this.isInterceptorSetup) return;
     
     try {
-      console.log('🔍 GeoJump: Setting up map interceptor');
-      
       // Load the maps legacy modules to get access to OpenSearchDashboardsMap
       const modules = await lazyLoadMapsLegacyModules();
       
       if (modules.OpenSearchDashboardsMap && !this.originalOpenSearchDashboardsMap) {
-        console.log('🔍 GeoJump: Found OpenSearchDashboardsMap, setting up interceptor');
-        
         // Store the original constructor
         this.originalOpenSearchDashboardsMap = modules.OpenSearchDashboardsMap;
         
         // Create intercepted constructor
         const self = this;
         function InterceptedOpenSearchDashboardsMap(containerNode: HTMLElement, options: any) {
-          console.log('🔍 GeoJump: Intercepted OpenSearchDashboardsMap creation');
-          
           // Call original constructor
           const instance = new self.originalOpenSearchDashboardsMap(containerNode, options);
           
@@ -67,14 +61,12 @@ export class GeojumpMapService {
         }
         
         this.isInterceptorSetup = true;
-        console.log('🔍 GeoJump: Map interceptor setup complete');
       }
     } catch (error) {
       console.error('🔍 GeoJump: Error setting up map interceptor:', error);
     }
     
-    // Also scan for existing maps
-    this.scanForExistingMaps();
+    // Note: Removed automatic scanning for performance - maps will be scanned on-demand
   }
 
   /**
@@ -93,20 +85,12 @@ export class GeojumpMapService {
     };
     
     this.capturedMaps.push(capturedMap);
-    console.log(`🔍 GeoJump: Captured ${type} map. Total maps: ${this.capturedMaps.length}`);
-    
-    // Log available methods for debugging
-    const methods = Object.getOwnPropertyNames(instance)
-      .filter(prop => typeof instance[prop] === 'function')
-      .slice(0, 10);
-    console.log(`🔍 GeoJump: Map methods:`, methods);
   }
 
   /**
    * Scan for existing maps in the DOM
    */
   private scanForExistingMaps(): void {
-    console.log('🔍 GeoJump: Scanning for existing maps');
     
     // Look for visualization elements that might contain maps
     const visElements = document.querySelectorAll(
@@ -160,7 +144,6 @@ export class GeojumpMapService {
         
         // Look for _opensearchDashboardsMap property (this is the key property!)
         if (stateNode._opensearchDashboardsMap) {
-          console.log('🔍 GeoJump: Found _opensearchDashboardsMap in React stateNode');
           this.captureMap(stateNode._opensearchDashboardsMap, instance.stateNode, 'opensearch');
         }
         
@@ -170,7 +153,6 @@ export class GeojumpMapService {
           if (stateNode[mapProp] && typeof stateNode[mapProp] === 'object') {
             const mapObj = stateNode[mapProp];
             if (this.isValidMapInstance(mapObj)) {
-              console.log(`🔍 GeoJump: Found map in React stateNode.${mapProp}`);
               this.captureMap(mapObj, instance.stateNode, 'opensearch');
             }
           }
@@ -198,7 +180,6 @@ export class GeojumpMapService {
   private scanContainerForMaps(container: HTMLElement): void {
     // Check for Leaflet map
     if ((container as any)._leaflet_map) {
-      console.log('🔍 GeoJump: Found Leaflet map in container');
       this.captureMap((container as any)._leaflet_map, container, 'leaflet');
     }
     
@@ -206,7 +187,6 @@ export class GeojumpMapService {
     const mapProps = ['_map', '__map', 'map', 'mapInstance'];
     for (const prop of mapProps) {
       if ((container as any)[prop] && this.isValidMapInstance((container as any)[prop])) {
-        console.log(`🔍 GeoJump: Found map in container.${prop}`);
         this.captureMap((container as any)[prop], container, 'opensearch');
       }
     }
@@ -240,18 +220,14 @@ export class GeojumpMapService {
    * Jump to coordinates using captured maps
    */
   public async jumpToCoordinates(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
-    console.log(`🔍 GeoJump: Jumping to coordinates with ${this.capturedMaps.length} captured maps`);
-    
     // Ensure interceptor is set up
     if (!this.isInterceptorSetup) {
       await this.setupMapInterceptor();
     }
     
-    // Scan for new maps
-    this.scanForExistingMaps();
+    // Note: Removed automatic scanning for performance - rely on interceptor to capture maps
     
     if (this.capturedMaps.length === 0) {
-      console.log('🔍 GeoJump: No captured maps available');
       return false;
     }
     
@@ -261,7 +237,6 @@ export class GeojumpMapService {
       try {
         if (await this.jumpWithMapInstance(mapData, coordinates, options)) {
           success = true;
-          console.log(`🔍 GeoJump: Successfully jumped with ${mapData.type} map`);
         }
       } catch (error) {
         console.error(`🔍 GeoJump: Error jumping with ${mapData.type} map:`, error);
@@ -282,15 +257,32 @@ export class GeojumpMapService {
     const { instance, type } = mapData;
     const zoom = coordinates.zoom || options.zoomLevel || 10;
     
-    console.log(`🔍 GeoJump: Attempting jump with ${type} map instance`);
-    console.log(`🔍 GeoJump: Coordinates to jump to: lat=${coordinates.lat}, lon=${coordinates.lon}, zoom=${zoom}`);
-    
     if (type === 'opensearch') {
       // Try OpenSearch Dashboards map methods
       if (typeof instance.setCenter === 'function' && typeof instance.setZoomLevel === 'function') {
-        console.log('🔍 GeoJump: Using OpenSearch Dashboards map methods');
-        instance.setCenter(coordinates.lat, coordinates.lon);
-        instance.setZoomLevel(zoom);
+        // Check map's zoom limits to avoid disabling zoom controls
+        let validZoom = zoom;
+        if (typeof instance.getMinZoom === 'function' && typeof instance.getMaxZoom === 'function') {
+          const minZoom = instance.getMinZoom();
+          const maxZoom = instance.getMaxZoom();
+          validZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+        }
+        
+        // Try using setView if available (combines center and zoom in one operation)
+        if (typeof instance.setView === 'function') {
+          instance.setView([coordinates.lat, coordinates.lon], validZoom);
+        } else {
+          // Otherwise use the order that worked for location (zoom first, then center)
+          instance.setZoomLevel(validZoom);
+          instance.setCenter(coordinates.lat, coordinates.lon);
+        }
+        
+        // Force a map refresh if available, but with a small delay
+        if (typeof instance.resize === 'function') {
+          setTimeout(() => {
+            instance.resize();
+          }, 50);
+        }
         
         // Force map refresh and tile reload
         await this.refreshMapTiles(instance);
@@ -300,7 +292,6 @@ export class GeojumpMapService {
       
       // Try underlying Leaflet map
       if (instance._leafletMap && typeof instance._leafletMap.setView === 'function') {
-        console.log('🔍 GeoJump: Using underlying Leaflet map');
         instance._leafletMap.setView([coordinates.lat, coordinates.lon], zoom);
         
         // Force Leaflet map refresh
@@ -313,7 +304,6 @@ export class GeojumpMapService {
     if (type === 'leaflet') {
       // Try direct Leaflet methods
       if (typeof instance.setView === 'function') {
-        console.log('🔍 GeoJump: Using direct Leaflet methods');
         instance.setView([coordinates.lat, coordinates.lon], zoom);
         
         // Force Leaflet map refresh
@@ -325,7 +315,6 @@ export class GeojumpMapService {
     
     // Try generic map methods (Mapbox style - lon, lat)
     if (typeof instance.flyTo === 'function') {
-      console.log('🔍 GeoJump: Using flyTo method (Mapbox style)');
       instance.flyTo({
         center: [coordinates.lon, coordinates.lat], // Mapbox expects [lon, lat]
         zoom: zoom
@@ -341,8 +330,6 @@ export class GeojumpMapService {
    */
   private async refreshMapTiles(mapInstance: any): Promise<void> {
     try {
-      console.log('🔍 GeoJump: Refreshing OpenSearch Dashboards map tiles');
-      
       // Trigger resize to ensure proper rendering
       if (typeof mapInstance.resize === 'function') {
         mapInstance.resize();
@@ -366,8 +353,6 @@ export class GeojumpMapService {
    */
   private async refreshLeafletMap(leafletMap: any): Promise<void> {
     try {
-      console.log('🔍 GeoJump: Refreshing Leaflet map tiles');
-      
       // Invalidate size to trigger redraw
       if (typeof leafletMap.invalidateSize === 'function') {
         leafletMap.invalidateSize();
@@ -376,7 +361,6 @@ export class GeojumpMapService {
       // Force tile layer refresh
       leafletMap.eachLayer((layer: any) => {
         if (layer._url && typeof layer.redraw === 'function') {
-          console.log('🔍 GeoJump: Redrawing tile layer');
           layer.redraw();
         }
       });
@@ -409,12 +393,11 @@ export class GeojumpMapService {
   }
 
   /**
-   * Start periodic scanning for new maps
+   * Start periodic scanning for new maps (REMOVED for performance)
+   * Maps are now captured via interceptor only
    */
   public startPeriodicScanning(intervalMs = 2000): void {
-    setInterval(() => {
-      this.scanForExistingMaps();
-    }, intervalMs);
+    // Method intentionally disabled to prevent performance issues
   }
 
   /**

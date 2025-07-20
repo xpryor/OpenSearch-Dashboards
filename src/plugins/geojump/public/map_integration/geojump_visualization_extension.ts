@@ -23,7 +23,7 @@ export class GeojumpVisualizationExtension {
   public async setup(): Promise<void> {
     if (this.isSetup) return;
 
-    console.log('🔍 GeoJump: Setting up visualization extension');
+
 
     try {
       // Hook into BaseMapsVisualization
@@ -34,7 +34,6 @@ export class GeojumpVisualizationExtension {
       await this.hookIntoRegionMapVisualization();
       
       this.isSetup = true;
-      console.log('🔍 GeoJump: Visualization extension setup complete');
     } catch (error) {
       console.error('🔍 GeoJump: Error setting up visualization extension:', error);
     }
@@ -52,14 +51,12 @@ export class GeojumpVisualizationExtension {
         
         // Check if it's available in the global scope
         if (win.BaseMapsVisualization) {
-          console.log('🔍 GeoJump: Found BaseMapsVisualization in global scope');
           this.extendBaseMapsVisualization(win.BaseMapsVisualization);
           return;
         }
         
         // Check if it's available in the maps legacy modules
         if (win.mapsLegacyModules && win.mapsLegacyModules.BaseMapsVisualization) {
-          console.log('🔍 GeoJump: Found BaseMapsVisualization in mapsLegacyModules');
           this.extendBaseMapsVisualization(win.mapsLegacyModules.BaseMapsVisualization);
           return;
         }
@@ -82,22 +79,17 @@ export class GeojumpVisualizationExtension {
       return;
     }
 
-    console.log('🔍 GeoJump: Extending BaseMapsVisualization');
-
     // Store original methods
     const originalMakeOpenSearchDashboardsMap = BaseMapsVisualizationClass.prototype._makeOpenSearchDashboardsMap;
     const originalRender = BaseMapsVisualizationClass.prototype.render;
 
     // Extend _makeOpenSearchDashboardsMap to capture map instances
     BaseMapsVisualizationClass.prototype._makeOpenSearchDashboardsMap = async function() {
-      console.log('🔍 GeoJump: Intercepted _makeOpenSearchDashboardsMap call');
-      
       // Call original method
       const result = await originalMakeOpenSearchDashboardsMap.call(this);
       
       // Capture the map instance
       if (this._opensearchDashboardsMap) {
-        console.log('🔍 GeoJump: Captured _opensearchDashboardsMap from BaseMapsVisualization');
         geojumpMapService.captureMap(this._opensearchDashboardsMap, this._container, 'opensearch');
         
         // Add GeoJump methods to the visualization instance
@@ -106,7 +98,6 @@ export class GeojumpVisualizationExtension {
         };
         
         this.geojumpJumpToCoordinates = (coordinates: GeojumpCoordinates, options: GeojumpOptions = {}) => {
-          console.log('🔍 GeoJump: Using visualization-specific jump method');
           
           const zoom = coordinates.zoom || options.zoomLevel || 10;
           
@@ -142,14 +133,11 @@ export class GeojumpVisualizationExtension {
 
     // Extend render method to ensure map is available
     BaseMapsVisualizationClass.prototype.render = async function(opensearchResponse: any, visParams: any) {
-      console.log('🔍 GeoJump: Intercepted render call');
-      
       // Call original render
       const result = await originalRender.call(this, opensearchResponse, visParams);
       
       // Ensure map is captured after render
       if (this._opensearchDashboardsMap && !geojumpMapService.getCapturedMaps().find(m => m.instance === this._opensearchDashboardsMap)) {
-        console.log('🔍 GeoJump: Capturing map after render');
         geojumpMapService.captureMap(this._opensearchDashboardsMap, this._container, 'opensearch');
       }
       
@@ -158,7 +146,6 @@ export class GeojumpVisualizationExtension {
 
     // Mark as extended
     BaseMapsVisualizationClass.__geojumpExtended = true;
-    console.log('🔍 GeoJump: BaseMapsVisualization extension complete');
   }
 
   /**
