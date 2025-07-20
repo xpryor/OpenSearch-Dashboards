@@ -17,7 +17,6 @@ export class GeojumpService {
   private isInitialized = false;
 
   constructor() {
-    console.log('🔍 GeoJump: GeojumpService initialized');
     this.initialize();
   }
 
@@ -28,15 +27,12 @@ export class GeojumpService {
     if (this.isInitialized) return;
 
     try {
-      console.log('🔍 GeoJump: Initializing service components');
-      
       // Set up the visualization extension
       await geojumpVisualizationExtension.setup();
       
       // Note: Removed periodic scanning for performance - maps will be scanned on-demand
       
       this.isInitialized = true;
-      console.log('🔍 GeoJump: Service initialization complete');
     } catch (error) {
       console.error('🔍 GeoJump: Error initializing service:', error);
     }
@@ -67,8 +63,6 @@ export class GeojumpService {
    * Jump to specific coordinates on all available maps
    */
   async jumpToCoordinates(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
-    console.log('🔍 GeoJump: Jumping to coordinates:', coordinates, 'with options:', options);
-
     // Ensure service is initialized
     await this.initialize();
 
@@ -85,7 +79,6 @@ export class GeojumpService {
       success = await geojumpVisualizationExtension.jumpToCoordinates(coordinates, options);
       
       if (success) {
-        console.log('🔍 GeoJump: Successfully jumped via visualization extension');
         this.emitJumpSuccess(coordinates, options);
         return true;
       }
@@ -94,7 +87,6 @@ export class GeojumpService {
       success = await geojumpMapService.jumpToCoordinates(coordinates, options);
       
       if (success) {
-        console.log('🔍 GeoJump: Successfully jumped via map service');
         this.emitJumpSuccess(coordinates, options);
         return true;
       }
@@ -103,12 +95,10 @@ export class GeojumpService {
       success = await this.tryFallbackMethods(coordinates, options);
       
       if (success) {
-        console.log('🔍 GeoJump: Successfully jumped via fallback methods');
         this.emitJumpSuccess(coordinates, options);
         return true;
       }
 
-      console.log('🔍 GeoJump: All jump methods failed');
       this.emitJumpFailure(coordinates, options, 'No maps found or accessible');
       return false;
 
@@ -123,8 +113,6 @@ export class GeojumpService {
    * Try fallback methods when primary methods fail
    */
   private async tryFallbackMethods(coordinates: GeojumpCoordinates, options: GeojumpOptions = {}): Promise<boolean> {
-    console.log('🔍 GeoJump: Trying fallback methods');
-
     // Method 1: Try direct Leaflet access
     if (await this.tryDirectLeafletAccess(coordinates, options)) {
       return true;

@@ -11,6 +11,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiText,
+  EuiCallOut,
 } from '@elastic/eui';
 import { i18n } from '@osd/i18n';
 import { GeojumpCoordinates } from '../../common';
@@ -35,8 +36,35 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
   const [zoomLevel, setZoomLevel] = useState(12);
   const [isJumping, setIsJumping] = useState(false);
   const [isHoveringPanel, setIsHoveringPanel] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const [controlPosition, setControlPosition] = useState<React.CSSProperties>({});
+  const [maxModalHeight, setMaxModalHeight] = useState<string>('400px');
+
+  // Calculate maximum modal height based on map container size
+  const calculateMaxModalHeight = () => {
+    if (!mapContainer) return '400px';
+    
+    const containerRect = mapContainer.getBoundingClientRect();
+    const containerHeight = containerRect.height;
+    
+    // Calculate available space based on position
+    let availableHeight: number;
+    
+    if (position.startsWith('top')) {
+      // For top positions, available height is from button position to bottom of container
+      availableHeight = containerHeight - 52 - 20; // 52px for button position + 20px padding
+    } else {
+      // For bottom positions, available height is from top of container to button position
+      availableHeight = containerHeight - 72 - 20; // 72px for button position + 20px padding
+    }
+    
+    // Ensure minimum height and maximum reasonable height
+    const minHeight = 200;
+    const maxHeight = Math.max(minHeight, Math.min(availableHeight, 500));
+    
+    return `${maxHeight}px`;
+  };
 
   // Disable only the map elements, not the entire container
   const disableMapInteractions = () => {
@@ -165,6 +193,9 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
     };
 
     setControlPosition(positionStyles[position]);
+    
+    // Calculate and set the maximum modal height based on map container
+    setMaxModalHeight(calculateMaxModalHeight());
   }, [mapContainer, position]);
 
   const onButtonClick = (e: React.MouseEvent) => {
@@ -185,13 +216,15 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
     if (!onJump || !coordinateInput.trim()) return;
 
     setIsJumping(true);
+    setErrorMessage(null); // Clear any previous errors
     
     try {
       // Parse coordinates
       const coordinates = CoordinateParser.parseCoordinates(coordinateInput.trim());
       
       if (!coordinates) {
-        console.error('🔍 GeoJump: Invalid coordinates format');
+        const validation = CoordinateParser.validateInput(coordinateInput.trim());
+        setErrorMessage(validation.error || 'Invalid coordinate format');
         return;
       }
 
@@ -207,9 +240,13 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
         animateTransition: true 
       });
       
+      // Clear error on successful jump
+      setErrorMessage(null);
+      
       // Keep the popover open after jumping for easy re-use
     } catch (error) {
       console.error('🔍 GeoJump: Error jumping to coordinates:', error);
+      setErrorMessage('Failed to jump to coordinates. Please try again.');
     } finally {
       setIsJumping(false);
     }
@@ -360,6 +397,8 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
             left: controlPosition.left === '12px' ? '0px' : 'auto',
             zIndex: 1004,
             width: '320px',
+            maxHeight: maxModalHeight,
+            overflow: 'auto', // Make it scrollable when content exceeds maxHeight
           }}
           onMouseEnter={handlePanelMouseEnter}
           onMouseLeave={handlePanelMouseLeave}
@@ -403,7 +442,7 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
                 defaultMessage: 'Coordinates',
               })}
               helpText={i18n.translate('geojump.mapControl.coordinatesHelp', {
-                defaultMessage: 'Enter lat, lon (e.g., 40.7128, -74.0060)',
+                defaultMessage: 'Enter lat, lon (e.g., 40.7128, -74.0060 or 37.7749° N, 122.4194° W)',
               })}
             >
               <div
@@ -495,6 +534,22 @@ export const GeojumpMapControl: React.FC<GeojumpMapControlProps> = ({
             </EuiFormRow>
             
             <EuiSpacer size="s" />
+            
+            {errorMessage && (
+              <>
+                <EuiCallOut
+                  title={i18n.translate('geojump.mapControl.error.title', {
+                    defaultMessage: 'Invalid Coordinates',
+                  })}
+                  color="danger"
+                  iconType="alert"
+                  size="s"
+                >
+                  <p>{errorMessage}</p>
+                </EuiCallOut>
+                <EuiSpacer size="s" />
+              </>
+            )}
             
             <EuiFlexGroup justifyContent="spaceBetween" alignItems="center">
               <EuiFlexItem>

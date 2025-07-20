@@ -20,6 +20,12 @@ export class CoordinateParser {
       return decimalResult;
     }
 
+    // Try parsing as decimal degrees with degree symbols and cardinal directions
+    const decimalWithSymbolsResult = this.parseDecimalDegreesWithSymbols(trimmedInput);
+    if (decimalWithSymbolsResult) {
+      return decimalWithSymbolsResult;
+    }
+
     // Try parsing as degrees, minutes, seconds
     const dmsResult = this.parseDegreesMinutesSeconds(trimmedInput);
     if (dmsResult) {
@@ -58,6 +64,55 @@ export class CoordinateParser {
     }
 
     return { lat, lon };
+  }
+
+  /**
+   * Parse decimal degrees with degree symbols and cardinal directions: "37.7749° N, 122.4194° W"
+   */
+  private static parseDecimalDegreesWithSymbols(input: string): GeojumpCoordinates | null {
+    // Try different patterns for decimal degrees with degree symbols and cardinal directions
+    const patterns = [
+      // Pattern: "37.7749° N, 122.4194° W" or "37.7749°N, 122.4194°W"
+      /(\d{1,3}(?:\.\d+)?)°\s*([NSEW])\s*,?\s*(\d{1,3}(?:\.\d+)?)°\s*([NSEW])/i,
+      // Pattern: "N 37.7749°, W 122.4194°" or "N37.7749°, W122.4194°"
+      /([NSEW])\s*(\d{1,3}(?:\.\d+)?)°\s*,?\s*([NSEW])\s*(\d{1,3}(?:\.\d+)?)°/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = input.match(pattern);
+      if (match) {
+        let lat: number, lon: number;
+        
+        if (pattern === patterns[0]) {
+          // First pattern: "37.7749° N, 122.4194° W"
+          const [, latValue, latDir, lonValue, lonDir] = match;
+          lat = this.applyDirection(parseFloat(latValue), latDir.toUpperCase(), true);
+          lon = this.applyDirection(parseFloat(lonValue), lonDir.toUpperCase(), false);
+        } else {
+          // Second pattern: "N 37.7749°, W 122.4194°"
+          const [, latDir, latValue, lonDir, lonValue] = match;
+          lat = this.applyDirection(parseFloat(latValue), latDir.toUpperCase(), true);
+          lon = this.applyDirection(parseFloat(lonValue), lonDir.toUpperCase(), false);
+        }
+
+        if (!isNaN(lat) && !isNaN(lon) && this.isValidLatitude(lat) && this.isValidLongitude(lon)) {
+          return { lat, lon };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Apply cardinal direction to coordinate value
+   */
+  private static applyDirection(value: number, direction: string, isLatitude: boolean): number {
+    if (isLatitude) {
+      return direction === 'S' ? -Math.abs(value) : Math.abs(value);
+    } else {
+      return direction === 'W' ? -Math.abs(value) : Math.abs(value);
+    }
   }
 
   /**
@@ -255,7 +310,7 @@ export class CoordinateParser {
     if (!coordinates) {
       return { 
         isValid: false, 
-        error: 'Invalid coordinate format. Try: "37.773972, -122.431297" or "40°42\'46"N 74°0\'21"W"' 
+        error: 'Invalid coordinate format. Try: "37.773972, -122.431297", "37.7749° N, 122.4194° W", or "40°42\'46"N 74°0\'21"W"' 
       };
     }
 

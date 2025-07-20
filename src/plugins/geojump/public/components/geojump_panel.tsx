@@ -176,6 +176,11 @@ export const GeojumpPanel: React.FC<GeojumpPanelProps> = ({
             <EuiCode>40.7128, -74.0060</EuiCode>
           </li>
           <li>
+            <strong>Decimal Degrees with Symbols:</strong>
+            <br />
+            <EuiCode>37.7749° N, 122.4194° W</EuiCode>
+          </li>
+          <li>
             <strong>Degrees, Minutes, Seconds:</strong>
             <br />
             <EuiCode>40°42'46"N 74°0'21"W</EuiCode>
